@@ -1,0 +1,26 @@
+
+# .gitignore
+*.tfvars
+.terraform/
+*.exe
+# Terraform state files
+*.tfstate
+*.tfstate.*
+.terraform/
+crash.log
+# Terraform stuff
+*.tfstate
+*.tfstate.*
+.terraform/
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+terraform.tfvars
+terraform.tfvars.json
+# Ignore all .tfstate files everywhere
+**/*.tfstate
+**/*.tfstate.*
+
+

@@ -13,7 +13,7 @@ provider "azurerm" {
 }
 
 resource "azurerm_resource_group" "RG-east-US" {
-  name     = "RG-eastus"
+  name     = "RG-eastus-az700"
   location = "East US"
 }
 

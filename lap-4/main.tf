@@ -31,7 +31,7 @@ resource "azurerm_virtual_network" "vn-1" {
     address_prefixes = ["10.20.20.0/24"]
   }
   subnet {
-    name             = "subnet2"
+    name             = "GatewaySubnet"
     address_prefixes = ["10.20.0.0/27"]
   }
   tags = {
@@ -52,7 +52,7 @@ resource "azurerm_virtual_network" "vn-2" {
     security_group   = azurerm_network_security_group.network-securty-2.id
   }
  subnet {
-    name             = "subnet2"
+    name             = "GatewaySubnet"
     address_prefixes = ["10.30.0.0/27"]
   }
 
@@ -69,7 +69,7 @@ data "azurerm_subnet" "vn1-s1" {
 }
 
 data "azurerm_subnet" "vn1-s2" {
-  name                 = "subnet2"
+  name                 = "GatewaySubnet"
   virtual_network_name = azurerm_virtual_network.vn-1.name
   resource_group_name  = azurerm_resource_group.rsg-1.name
 }
@@ -81,7 +81,7 @@ data "azurerm_subnet" "vn2-s1" {
 }
 
 data "azurerm_subnet" "vn2-s2" {
-  name                 = "subnet2"
+  name                 = "GatewaySubnet"
   virtual_network_name = azurerm_virtual_network.vn-2.name
   resource_group_name  = azurerm_resource_group.rsg-1.name
 }
@@ -187,7 +187,88 @@ resource "azurerm_network_security_group" "network-securty-2" {
 
 resource "azurerm_public_ip" "public-ip2" {
   name                = "public-ip2"
-  resource_group_name = azurerm_resource_group.rsg-1.name
+  resource_group_name = azurerm_resource_group.rsg-1.name 
   location            = azurerm_virtual_network.vn-2.location
   allocation_method   = "Static"
+}
+//gateway for vn2
+resource "azurerm_public_ip" "vng_ip2" {
+  name                = "vng-public-ip2"
+  location            = azurerm_virtual_network.vn-2.location
+  resource_group_name = azurerm_resource_group.rsg-1.name
+  allocation_method   = "Static"
+  sku                 = "Standard"
+}
+
+# 5. Virtual Network Gateway
+resource "azurerm_virtual_network_gateway" "vng2" {
+  name                = "ManufacturingVnetGateway"
+  location            = azurerm_virtual_network.vn-2.location
+  resource_group_name = azurerm_resource_group.rsg-1.name
+
+  type     = "Vpn"
+  vpn_type = "RouteBased"
+  sku      = "VpnGw1"
+
+  ip_configuration {
+    name                          = "vng-ipconfig"
+    public_ip_address_id          = azurerm_public_ip.vng_ip2.id
+    private_ip_address_allocation = "Dynamic"
+    subnet_id                     = data.azurerm_subnet.vn2-s2.id
+  }
+}
+//gatewayfor vn1
+resource "azurerm_public_ip" "vng_ip1" {
+  name                = "vng-public-ip1"
+  location            = azurerm_virtual_network.vn-1.location
+  resource_group_name = azurerm_resource_group.rsg-1.name
+  allocation_method   = "Static"
+  sku                 = "Standard"
+}
+
+# 5. Virtual Network Gateway
+resource "azurerm_virtual_network_gateway" "vng1" {
+  name                = "CoreServicesVnet"
+  location            = azurerm_virtual_network.vn-1.location
+  resource_group_name = azurerm_resource_group.rsg-1.name
+
+  type     = "Vpn"
+  vpn_type = "RouteBased"
+  sku      = "VpnGw1"
+
+  ip_configuration {
+    name                          = "vng-ipconfig"
+    public_ip_address_id          = azurerm_public_ip.vng_ip1.id
+    private_ip_address_allocation = "Dynamic"
+    subnet_id                     = data.azurerm_subnet.vn1-s2.id
+  }
+}
+
+
+
+// for connection between vnt
+
+
+resource "azurerm_virtual_network_gateway_connection" "us_to_europe" {
+  name                = "vn1-to-vn2"
+  location            = azurerm_resource_group.rsg-1.location
+  resource_group_name = azurerm_resource_group.rsg-1.name
+
+  type                            = "Vnet2Vnet"
+  virtual_network_gateway_id      = azurerm_virtual_network_gateway.vng1.id
+  peer_virtual_network_gateway_id = azurerm_virtual_network_gateway.vng2.id
+
+  shared_key = "4-v3ry-53cr37-1p53c-5h4r3d-k3y"
+}
+
+resource "azurerm_virtual_network_gateway_connection" "europe_to_us" {
+  name                = "vn2-to-vn1"
+  location            = azurerm_linux_virtual_machine.vm2.location
+  resource_group_name = azurerm_resource_group.rsg-1.name
+
+  type                            = "Vnet2Vnet"
+  virtual_network_gateway_id      = azurerm_virtual_network_gateway.vng2.id
+  peer_virtual_network_gateway_id = azurerm_virtual_network_gateway.vng1.id
+
+  shared_key = "4-v3ry-53cr37-1p53c-5h4r3d-k3y"
 }
